@@ -7,7 +7,10 @@ import java.util.concurrent.TimeUnit;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.QueryConfig;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.RoutingControl;
+
+import static org.neo4j.driver.Values.parameters;
 
 public class App {
 
@@ -20,6 +23,29 @@ public class App {
         try (var driver = GraphDatabase.driver(URI, AuthTokens.basic(USER, PASSWORD))) {
             driver.verifyConnectivity();
 
+            // migos de la alice que tienen menos de 40
+            var result = driver.session()
+                    .run("MATCH (p:Person {name: $name})-[:KNOWS]-(friend:Person) " +
+                                    "WHERE friend.age < $age " +
+                                    "RETURN friend ",
+                            parameters("name", "Alice", "age", 40));
+
+            // Iterar directamente sobre el resultado
+            for (Record record : result.list()) {
+                String friendName = record.get("friend").get("name").asString();
+                int friendAge = record.get("friend").get("age").asInt();
+                System.out.println("Nombre: " + friendName + ", Edad: " + friendAge);
+            }
+
+        } catch (Exception e){
+            e.printStackTrace();
         }
+
+
+
+
+
+
+
     }
 }

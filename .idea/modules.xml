@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/neo4j-demo-app/neo4jActors.iml" filepath="$PROJECT_DIR$/neo4j-demo-app/neo4jActors.iml" />
+      <module fileurl="file://$PROJECT_DIR$/neo4jActors/neo4jActors.iml" filepath="$PROJECT_DIR$/neo4jActors/neo4jActors.iml" />
     </modules>
   </component>
 </project>
