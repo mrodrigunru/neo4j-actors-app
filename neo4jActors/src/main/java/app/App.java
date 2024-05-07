@@ -2,6 +2,7 @@ package app;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.driver.*;
@@ -17,73 +18,97 @@ public class App {
 
     public static void main(String[] args) {
 
+        boolean exit = false;
         try (var driver = GraphDatabase.driver(URI, AuthTokens.basic(USER, PASSWORD))) {
             driver.verifyConnectivity();
+            while (!exit) {
 
-            List<Map> people = List.of(
-                    Map.of("name", "Alice", "age", 42, "friends", List.of("Bob", "Peter", "Anna")),
-                    Map.of("name", "Bob", "age", 19),
-                    Map.of("name", "Peter", "age", 50),
-                    Map.of("name", "Anna", "age", 30)
-            );
 
-            //Crear Nodos
-            try (Session session = driver.session()) {
+                Scanner scanner = new Scanner(System.in);
 
-                people.forEach(person -> {
-                    var result = driver.executableQuery("CREATE (p:Person {name: $person.name, age: $person.age})")
-                            .withConfig(QueryConfig.builder().withDatabase("neo4j").build())
-                            .withParameters(Map.of("person", person))
-                            .execute();
-                });
+                System.out.println("Eliga el modo de búsqueda de recomendaciones:  \n 1.Recomendacion de actores \n 2.Recomendacion de peliculas ");
 
-                //Crear relaciones
-                people.forEach(person -> {
-                    if(person.containsKey("friends")) {
-                        var result = driver.executableQuery("""
-                            MATCH (p:Person {name: $person.name})
-                            UNWIND $person.friends AS friend_name
-                            MATCH (friend:Person {name: friend_name})
-                            CREATE (p)-[:KNOWS]->(friend)
-                             """)
-                                .withConfig(QueryConfig.builder().withDatabase("neo4j").build())
-                                .withParameters(Map.of("person", person))
-                                .execute();
-                    }
-                });
+                String modo = scanner.nextLine();
 
-                // migos de la alice que tienen menos de 40
-                var result = driver.session()
-                        .run("MATCH (p:Person {name: $name})-[:KNOWS]-(friend:Person) " +
-                                        "WHERE friend.age < $age " +
-                                        "RETURN friend ",
-                                parameters("name", "Alice", "age", 40));
+                if (modo.equals("salir")) break;
 
-                // Iterar directamente sobre el resultado
-                for (Record record : result.list()) {
-                    String friendName = record.get("friend").get("name").asString();
-                    int friendAge = record.get("friend").get("age").asInt();
-                    System.out.println("Nombre: " + friendName + ", Edad: " + friendAge);
+                switch (modo) {
+                    case "1":
+                        try (Session session = driver.session()) {
+                            System.out.println("Para salir, escriba salir.\n");
+                            System.out.println("Ingrese el nombre de un actor o actriz: ");
+
+                            String nomActor = scanner.nextLine();
+
+                            if (nomActor.equals("salir")) break;
+
+                            System.out.println("\nIngrese una pelicula en la que haya actuado ese actor o actriz: ");
+
+                            String nomPelicula = scanner.nextLine();
+
+                            if (nomPelicula.equals("salir")) break;
+
+                            var result = driver.session()
+                                    .run("MATCH (p:Actor {name: $name})-[:ACTED_WITH {movie:$movie}]-(a2:Actor) RETURN a2.name AS nombre, a2.data AS datos ",
+                                            parameters("name", nomActor, "movie", nomPelicula));
+
+
+                            System.out.println("Actor/es o actriz/actrices recomendado(s)");
+                            // Iterar directamente sobre el resultado
+                            for (Record record : result.list()) {
+                                String nombre = record.get("nombre").asString();
+                                String datos = record.get("datos").asString();
+                                System.out.println("Actor: " + nombre + "\nDatos: " + datos + "\n");
+                            }
+
+
+                        }catch (Exception e){
+                            System.out.println("Ha ocurrido un error.");
+                        }
+                        break;
+
+                    case "2":
+
+                        try (Session session = driver.session()) {
+
+                            System.out.println("Para salir, escriba salir.\n");
+                            System.out.println("Ingrese el nombre de un actor o actriz: ");
+
+                            String nomActor = scanner.nextLine();
+
+                            if (nomActor.equals("salir")) break;
+
+                            System.out.println("\nIngrese otro actor que ha trabajado con el anterior: ");
+
+                            String nomActor2 = scanner.nextLine();
+
+                            if (nomActor2.equals("salir")) break;
+
+                            var result = driver.session()
+                                    .run("MATCH (a1:Actor {name: $name1})-[r:ACTED_WITH]-(a2:Actor {name: $name2})\n" +
+                                                    "RETURN r.movie AS pelicula",
+                                            parameters("name1", nomActor, "name2", nomActor2));
+
+
+                            // Iterar directamente sobre el resultado
+                            for (Record record : result.list()) {
+                                String pelicula = record.get("pelicula").asString();
+                                // String datos = record.get("datos").asString();
+                                System.out.println("Pelicula recomendada: " + pelicula);
+                            }
+                        }catch (Exception e){
+                            System.out.println("Ha ocurrido un error.");
+                        }
+                        break;
                 }
 
 
-
-                // Ejecutar la consulta Cypher para eliminar todos los nodos y relaciones
-                session.run("MATCH (n) DETACH DELETE n");
-                System.out.println("Se han eliminado todos los nodos y relaciones de la base de datos.");
-
             }
 
-
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-
-
-
-
+//consulta de nivel 2: dado dos actores devuelve su pelicula y con esa pelicula dame el resto de actores de la misma
 
     }
 }
